@@ -36,6 +36,12 @@ def assign_points(
         raise ValueError(f"missing polygon id column: {polygon_id_col}")
     if points[point_id_col].duplicated().any():
         raise ValueError("point IDs must be unique")
+    if polygons[polygon_id_col].duplicated().any():
+        raise ValueError("polygon IDs must be unique")
+    if "geometry_role" in polygons.columns:
+        roles = polygons["geometry_role"].astype("string")
+        if roles.isna().any() or roles.ne("analytical").any():
+            raise ValueError("point assignment requires analytical geometry")
 
     left = points[[point_id_col, "geometry"]].to_crs(polygons.crs)
     right = polygons[[polygon_id_col, "geometry"]]
