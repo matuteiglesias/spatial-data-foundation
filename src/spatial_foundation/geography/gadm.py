@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import geopandas as gpd
-import pandas as pd
 
 from .models import GeometryRole, geography_uid
 
@@ -9,7 +8,7 @@ from .models import GeometryRole, geography_uid
 REQUIRED_BASE = {"GID_0"}
 
 
-def _require_identity(series: pd.Series, *, label: str) -> pd.Series:
+def _require_identity(series, *, label: str):
     missing = series.isna() | series.astype("string").str.strip().eq("")
     if missing.any():
         raise ValueError(f"GADM {label} is not resolvable for {int(missing.sum())} row(s)")
@@ -57,11 +56,10 @@ def normalize_gadm_frame(
     data["native_admin_level"] = level
     data["geo_uid"] = data["source_geo_id"].map(lambda x: geography_uid("gadm", version, level, x))
     if parent_col and parent_col in data.columns:
+        parent_present = data[parent_col].notna() & data[parent_col].astype("string").str.strip().ne("")
         data["parent_geo_uid"] = [
-            None
-            if pd.isna(value) or not str(value).strip()
-            else geography_uid("gadm", version, level - 1, str(value))
-            for value in data[parent_col]
+            geography_uid("gadm", version, level - 1, str(value)) if present else None
+            for value, present in zip(data[parent_col], parent_present)
         ]
     else:
         data["parent_geo_uid"] = None
