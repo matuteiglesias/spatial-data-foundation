@@ -37,9 +37,9 @@ def sha256_file(path: str | Path, chunk_size: int = 1024 * 1024) -> str:
 
 
 def register_external_snapshot(source: str, release: str, paths: list[str | Path]) -> SourceSnapshotRef:
+    resolved_paths = sorted(Path(raw).expanduser().resolve() for raw in paths)
     refs = []
-    for raw in paths:
-        path = Path(raw).expanduser().resolve()
+    for path in resolved_paths:
         stat = path.stat()
         refs.append(SourceFileRef(path=str(path), sha256=sha256_file(path), size_bytes=stat.st_size))
     short = sha256("".join(ref.sha256 for ref in refs).encode()).hexdigest()[:12]
