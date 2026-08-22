@@ -16,3 +16,10 @@ def test_legacy_t2_y2001_semantics():
 def test_t3_and_t4_parameterize_without_new_code():
     assert PeriodIndex(PeriodScheme(width_years=3, anchor_year=2001)).period_for(2004).period_id == "2004-2006"
     assert PeriodIndex(PeriodScheme(width_years=4, anchor_year=2001)).period_for(2005).period_id == "2005-2008"
+
+
+def test_alternate_anchor_and_range_use_same_indexing_rule():
+    index = PeriodIndex(PeriodScheme(width_years=2, anchor_year=2000))
+    assert index.period_for(1999).period_id == "1998-1999"
+    assert index.period_for(2000).period_id == "2000-2001"
+    assert [p.period_id for p in index.range(1999, 2003)] == ["1998-1999", "2000-2001", "2002-2003"]
