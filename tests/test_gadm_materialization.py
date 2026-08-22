@@ -8,10 +8,7 @@ from spatial_foundation.catalog import register_external_snapshot, sha256_file
 from spatial_foundation.geography import materialize_gadm
 
 
-pytest.importorskip("pyarrow")
-
-
-def _write_geojson(path: Path, *, level: int, rows: list[tuple[str, ...]]) -> None:
+def _write_geojson(path: Path, *, rows: list[tuple[str, ...]]) -> None:
     features = []
     for index, gids in enumerate(rows):
         properties = {f"GID_{i}": gid for i, gid in enumerate(gids)}
@@ -43,12 +40,13 @@ def _write_geojson(path: Path, *, level: int, rows: list[tuple[str, ...]]) -> No
 def _synthetic_snapshot(tmp_path: Path):
     adm0 = tmp_path / "gadm41_SYN_0.geojson"
     adm1 = tmp_path / "gadm41_SYN_1.geojson"
-    _write_geojson(adm0, level=0, rows=[("AAA",), ("BBB",)])
-    _write_geojson(adm1, level=1, rows=[("AAA", "AAA.1_1"), ("BBB", "BBB.1_1")])
+    _write_geojson(adm0, rows=[("AAA",), ("BBB",)])
+    _write_geojson(adm1, rows=[("AAA", "AAA.1_1"), ("BBB", "BBB.1_1")])
     return register_external_snapshot("gadm", "4.1", [adm0, adm1]), adm0, adm1
 
 
 def test_materialize_gadm_publishes_geoparquet_manifest_and_qa(tmp_path):
+    pytest.importorskip("pyarrow")
     snapshot, _, _ = _synthetic_snapshot(tmp_path)
     output_root = tmp_path / "asset-root"
     code_commit = "a" * 40
