@@ -123,15 +123,15 @@ def _verify_snapshot(snapshot: SourceSnapshotRef) -> None:
         path = Path(ref.path)
         if not path.exists():
             raise ValueError(f"source snapshot file is missing: {path}")
-        actual_size = path.stat().st_size
-        if actual_size != ref.size_bytes:
-            raise ValueError(
-                f"source snapshot size mismatch for {path}: expected {ref.size_bytes}, got {actual_size}"
-            )
         actual_hash = sha256_file(path)
         if actual_hash != ref.sha256:
             raise ValueError(
                 f"source snapshot hash mismatch for {path}: expected {ref.sha256}, got {actual_hash}"
+            )
+        actual_size = path.stat().st_size
+        if actual_size != ref.size_bytes:
+            raise ValueError(
+                f"source snapshot size mismatch for {path}: expected {ref.size_bytes}, got {actual_size}"
             )
 
 
@@ -170,7 +170,12 @@ def _read_single_level(path: Path, level: int) -> gpd.GeoDataFrame | None:
     return frame if _native_level(frame) == level else None
 
 
-def _read_level(snapshot: SourceSnapshotRef, level: int) -> gpd.GeoDataFrame:
+def _read_level(
+    snapshot: SourceSnapshotRef,
+    level: int,
+    *,
+    area_crs: str,
+) -> gpd.GeoDataFrame:
     normalized_parts = []
     for ref in snapshot.files:
         source = _read_single_level(Path(ref.path), level)
@@ -181,6 +186,7 @@ def _read_level(snapshot: SourceSnapshotRef, level: int) -> gpd.GeoDataFrame:
                 source,
                 version=snapshot.release,
                 level=level,
+                area_crs=area_crs,
             )
         )
 
@@ -247,7 +253,9 @@ def materialize_gadm(
     final silver paths are published. Run provenance and geography QA are persisted as
     JSON companions under ``runs/spatial-data-foundation/<run_id>/``.
 
-    GeoParquet materialization requires the package ``io`` extra (pyarrow).
+    The registered snapshot may contain separate level files or standard GADM 4.x
+    GeoPackages with ``ADM_ADM_<level>`` layers. GeoParquet materialization requires
+    the package ``io`` extra (pyarrow).
     """
     try:
         import pyarrow  # noqa: F401
@@ -285,7 +293,7 @@ def materialize_gadm(
     try:
         _verify_snapshot(snapshot)
         normalized = {
-            level: _read_level(snapshot, level)
+            level: _read_level(snapshot, level, area_crs=area_crs)
             for level in requested_levels
         }
 
