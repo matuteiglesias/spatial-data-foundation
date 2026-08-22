@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from spatial_foundation.catalog import DataRoot, register_external_snapshot
 
 

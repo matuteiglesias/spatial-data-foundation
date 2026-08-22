@@ -1,6 +1,7 @@
 from importlib.metadata import version
 
 from empirical_contracts import GeographySpec, PeriodScheme
+
 from spatial_foundation import DataRoot, PeriodIndex
 
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime
-import math
 
 from empirical_contracts import PeriodScheme
 

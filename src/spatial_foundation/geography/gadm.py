@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import geopandas as gpd
 
-from .models import GeometryRole, geography_uid
+from .models import geography_uid, GeometryRole
 
 
 REQUIRED_BASE = {"GID_0"}
