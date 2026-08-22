@@ -27,7 +27,6 @@ from empirical_contracts import (
 from ..catalog import DataRoot, sha256_file
 from .gadm import normalize_gadm_frame
 
-
 PACKAGE_NAME = "spatial-data-foundation"
 
 
