@@ -1,6 +1,7 @@
 from datetime import date
 
 from empirical_contracts import PeriodScheme
+
 from spatial_foundation.periods import PeriodIndex
 
 

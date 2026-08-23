@@ -12,7 +12,7 @@ class DataRoot:
     root: Path
 
     @classmethod
-    def from_path(cls, value: str | Path) -> "DataRoot":
+    def from_path(cls, value: str | Path) -> DataRoot:
         return cls(Path(value).expanduser().resolve())
 
     def bronze(self, source: str, release: str, snapshot_id: str) -> Path:

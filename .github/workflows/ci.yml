@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  clean-consumer:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out spatial-data-foundation only
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade installer
+        run: python -m pip install --upgrade pip
+
+      - name: Install project from pyproject
+        run: python -m pip install ".[dev]"
+
+      - name: Verify external contracts dependency
+        run: |
+          python - <<'PY'
+          import importlib.metadata as metadata
+          import json
+          import empirical_contracts
+          import spatial_foundation
+
+          dist = metadata.distribution("empirical-data-contracts")
+          print("empirical-data-contracts", dist.version)
+          print("empirical_contracts", empirical_contracts.__file__)
+          print("spatial_foundation", spatial_foundation.__file__)
+
+          direct_url = dist.read_text("direct_url.json")
+          if direct_url:
+              payload = json.loads(direct_url)
+              assert not payload.get("dir_info", {}).get("editable", False), payload
+              assert "matuteiglesias/empirical-data-contracts" not in payload.get("url", ""), payload
+          PY
+
+      - name: Run tests
+        run: pytest
+
+      - name: Run ruff
+        run: ruff check .
+
+      - name: Build distributions
+        run: python -m build

@@ -4,7 +4,6 @@ import geopandas as gpd
 
 from .models import GeometryRole, geography_uid
 
-
 REQUIRED_BASE = {"GID_0"}
 
 

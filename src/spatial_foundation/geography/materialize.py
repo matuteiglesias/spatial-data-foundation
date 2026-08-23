@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
-from importlib.metadata import PackageNotFoundError, version as package_version
-import json
-import os
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
-import subprocess
-from typing import Iterable
 
 import geopandas as gpd
 import pandas as pd
-
 from empirical_contracts import (
     AuthorityLevel,
     DataLayer,
@@ -26,7 +26,6 @@ from empirical_contracts import (
 
 from ..catalog import DataRoot, sha256_file
 from .gadm import normalize_gadm_frame
-
 
 PACKAGE_NAME = "spatial-data-foundation"
 

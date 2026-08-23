@@ -1,8 +1,8 @@
 import geopandas as gpd
 import pytest
+from empirical_contracts import PeriodScheme
 from shapely.geometry import Point, Polygon
 
-from empirical_contracts import PeriodScheme
 from spatial_foundation.geography import assign_points, normalize_gadm_frame
 from spatial_foundation.periods import PeriodIndex
 
