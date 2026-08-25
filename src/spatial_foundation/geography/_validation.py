@@ -36,7 +36,9 @@ def require_analytical_polygons(
     if "geometry_role" in polygons.columns:
         roles = polygons["geometry_role"].astype("string")
         if roles.isna().any() or roles.ne("analytical").any():
-            raise ValueError(f"{operation} requires analytical geometry")
+            raise ValueError(
+                f"{operation} requires analytical geometry; analytical geography only"
+            )
 
     geometry = polygons.geometry
     if geometry.isna().any() or geometry.is_empty.any() or (~geometry.is_valid).any():
