@@ -60,6 +60,34 @@ jobs:
       - name: Build distributions
         run: python -m build
 
+  benchmark-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out spatial-data-foundation only
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install benchmark environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+
+      - name: Run deterministic small benchmark
+        run: |
+          python -m benchmarks.run --preset small --output benchmark-smoke.json
+          cat benchmark-smoke.json
+
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spatial-benchmark-small
+          path: benchmark-smoke.json
+
   distribution-boundary:
     runs-on: ubuntu-latest
 
