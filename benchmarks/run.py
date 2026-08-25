@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -49,6 +50,24 @@ def _local_payload(args: argparse.Namespace) -> dict:
     }
 
 
+def _summary(payload: dict) -> str:
+    lines = [f"spatial benchmark preset={payload['preset']}"]
+    for result in payload["results"]:
+        cardinality = result["cardinality"]
+        timings = result["timings_seconds"]
+        amplification = cardinality["candidate_amplification"]
+        amplification_text = "n/a" if amplification is None else f"{amplification:.2f}x"
+        exact = timings.get("diagnostic_scalar_exact_geometry")
+        exact_text = "" if exact is None else f" exact={exact:.6f}s"
+        lines.append(
+            f"{result['workload']}: bbox={cardinality['bbox_candidates']} "
+            f"predicate={cardinality['predicate_candidates']} amp={amplification_text} "
+            f"query={timings['predicate_tree_query']:.6f}s{exact_text} "
+            f"total={timings['public_kernel_total']:.6f}s"
+        )
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run deterministic spatial relation benchmarks")
     parser.add_argument("--preset", choices=tuple(PRESET_WIDTHS), default="small")
@@ -72,6 +91,7 @@ def main() -> None:
     else:
         args.output.write_text(rendered, encoding="utf-8")
         print(args.output)
+    print(_summary(payload), file=sys.stderr)
 
 
 if __name__ == "__main__":
