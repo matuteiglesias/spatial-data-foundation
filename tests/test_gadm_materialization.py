@@ -1,9 +1,11 @@
 import json
+import subprocess
 from pathlib import Path
 
 import geopandas as gpd
 import pytest
 
+import spatial_foundation.geography.materialize as materialize_module
 from spatial_foundation.catalog import register_external_snapshot, sha256_file
 from spatial_foundation.geography import materialize_gadm
 
@@ -86,6 +88,14 @@ def test_materialize_gadm_publishes_geoparquet_manifest_and_qa(tmp_path):
     assert manifest["code_commit"] == code_commit
     assert manifest["parameters"]["area_crs"] == "EPSG:6933"
     assert manifest["parameters"]["available_levels"] == [0, 1]
+    runtime = manifest["parameters"]["runtime_versions"]
+    assert runtime["python"]
+    assert runtime["spatial-data-foundation"] == "0.1.0"
+    assert runtime["geopandas"] != "not-installed"
+    assert runtime["shapely"] != "not-installed"
+    assert runtime["GEOS"]
+    assert runtime["PROJ"]
+    assert runtime["GDAL"]
     assert manifest["inputs"][0]["snapshot_id"] == snapshot.snapshot_id
     assert {f["sha256"] for f in manifest["inputs"][0]["files"]} == {
         ref.sha256 for ref in snapshot.files
@@ -114,6 +124,29 @@ def test_materialize_gadm_publishes_geoparquet_manifest_and_qa(tmp_path):
     assert qa["source_snapshot"]["snapshot_id"] == snapshot.snapshot_id
 
 
+def test_materialize_gadm_allows_missing_git_metadata(monkeypatch, tmp_path):
+    pytest.importorskip("pyarrow")
+    snapshot, _, _ = _synthetic_snapshot(tmp_path)
+    monkeypatch.delenv("SPATIAL_DATA_FOUNDATION_CODE_COMMIT", raising=False)
+
+    def unavailable_git(*args, **kwargs):
+        raise subprocess.CalledProcessError(returncode=128, cmd=args[0] if args else "git")
+
+    monkeypatch.setattr(materialize_module.subprocess, "run", unavailable_git)
+
+    result = materialize_module.materialize_gadm(
+        snapshot=snapshot,
+        levels=[0],
+        output_root=tmp_path / "wheel-like-asset-root",
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["code_commit"] is None
+    assert manifest["package_version"] == "0.1.0"
+    assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == "0.1.0"
+    assert result.outputs[0].exists()
+
+
 def test_materialize_gadm_rejects_snapshot_drift_and_leaves_no_silver_output(tmp_path):
     snapshot, adm0, _ = _synthetic_snapshot(tmp_path)
     adm0.write_text(adm0.read_text(encoding="utf-8") + "\n", encoding="utf-8")
@@ -134,5 +167,6 @@ def test_materialize_gadm_rejects_snapshot_drift_and_leaves_no_silver_output(tmp
     qa = json.loads((run_root / "geography_qa.json").read_text(encoding="utf-8"))
     assert manifest["qa"][0]["state"] == "RED"
     assert manifest["outputs"] == []
+    assert manifest["parameters"]["runtime_versions"]["python"]
     assert qa["state"] == "RED"
     assert "hash mismatch" in qa["error"]
