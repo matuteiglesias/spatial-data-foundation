@@ -5,6 +5,12 @@ from dataclasses import dataclass
 import geopandas as gpd
 import pandas as pd
 
+from ._validation import (
+    require_analytical_polygons,
+    require_projected_metre_crs,
+    require_unique_nonmissing_ids,
+)
+
 
 @dataclass(frozen=True)
 class ArealOverlapAudit:
@@ -17,14 +23,6 @@ class ArealOverlapAudit:
 
 
 _AREAL_GEOMETRY_TYPES = {"Polygon", "MultiPolygon"}
-
-
-def _require_analytical_geography(polygons: gpd.GeoDataFrame) -> None:
-    if "geometry_role" not in polygons.columns:
-        return
-    roles = polygons["geometry_role"].astype("string")
-    if roles.isna().any() or roles.ne("analytical").any():
-        raise ValueError("areal overlap requires analytical geography geometry")
 
 
 def _positive_overlap_pairs(
@@ -83,25 +81,23 @@ def relate_areal_objects(
     Intersection area and the share of the source object's area are geometric facts only;
     they do not allocate money, exposure, population, or any other substantive quantity.
 
+    ``area_crs`` must be a projected CRS with metre horizontal units because the
+    emitted area column is explicitly labelled in square metres. This unit check does
+    not imply that every metre projection is equal-area.
+
     Boundary-only touches have zero intersection area and are excluded by default.
     """
     if min_overlap_area_m2 < 0:
         raise ValueError("min_overlap_area_m2 must be non-negative")
-    if objects.crs is None or polygons.crs is None:
-        raise ValueError("both objects and polygons require a CRS")
-    if object_id_col not in objects.columns:
-        raise ValueError(f"missing object id column: {object_id_col}")
-    if polygon_id_col not in polygons.columns:
-        raise ValueError(f"missing polygon id column: {polygon_id_col}")
-    if objects[object_id_col].isna().any() or objects[object_id_col].duplicated().any():
-        raise ValueError("object IDs must be non-missing and unique")
-    if polygons[polygon_id_col].isna().any() or polygons[polygon_id_col].duplicated().any():
-        raise ValueError("polygon IDs must be non-missing and unique")
-    _require_analytical_geography(polygons)
-
-    polygon_geometry = polygons.geometry
-    if polygon_geometry.isna().any() or polygon_geometry.is_empty.any() or (~polygon_geometry.is_valid).any():
-        raise ValueError("analytical geography contains missing, empty, or invalid geometry")
+    if objects.crs is None:
+        raise ValueError("areal relation source objects require a CRS")
+    require_unique_nonmissing_ids(objects, object_id_col, label="object")
+    require_analytical_polygons(
+        polygons,
+        polygon_id_col=polygon_id_col,
+        operation="areal overlap",
+    )
+    require_projected_metre_crs(area_crs)
 
     object_geometry = objects.geometry
     nonempty = object_geometry.notna() & ~object_geometry.is_empty
@@ -124,7 +120,11 @@ def relate_areal_objects(
         min_overlap_area_m2=min_overlap_area_m2,
     )
 
-    overlap_counts = pairs.groupby(object_id_col)[polygon_id_col].count() if len(pairs) else pd.Series(dtype="int64")
+    overlap_counts = (
+        pairs.groupby(object_id_col)[polygon_id_col].count()
+        if len(pairs)
+        else pd.Series(dtype="int64")
+    )
     rows: list[dict] = []
     for object_id in objects[object_id_col]:
         if not bool(valid.loc[objects[object_id_col].eq(object_id)].iloc[0]):
