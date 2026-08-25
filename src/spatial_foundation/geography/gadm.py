@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import geopandas as gpd
 
+from ._validation import require_projected_metre_crs
 from .models import GeometryRole, geography_uid
 
 REQUIRED_BASE = {"GID_0"}
@@ -25,8 +26,10 @@ def normalize_gadm_frame(
 
     Expected source fields are GID_0 .. GID_{level}. Parent identity is retained when
     available. Geometry is stored in EPSG:4326; area is calculated in the declared
-    equal-area CRS. The returned frame records the area CRS and geometry validity
-    profile in ``GeoDataFrame.attrs`` for run-manifest/provenance capture.
+    projected metre CRS. The unit check ensures ``area_km2`` is dimensionally valid,
+    but does not by itself claim equal-area scientific accuracy. The returned frame
+    records the area CRS and geometry validity profile in ``GeoDataFrame.attrs`` for
+    run-manifest/provenance capture.
     """
     if level < 0:
         raise ValueError("GADM admin level must be >= 0")
@@ -41,6 +44,7 @@ def normalize_gadm_frame(
         raise ValueError(f"missing required GADM columns: {sorted(missing)}")
     if frame.crs is None:
         raise ValueError("GADM source must have a declared CRS")
+    require_projected_metre_crs(area_crs)
 
     source_ids = _require_identity(frame[gid_col], label="source geography identity")
     country_ids = _require_identity(frame["GID_0"], label="country identity")
@@ -53,9 +57,13 @@ def normalize_gadm_frame(
     data["source_geo_id"] = source_ids.to_numpy()
     data["country_iso3"] = country_ids.str.slice(0, 3).to_numpy()
     data["native_admin_level"] = level
-    data["geo_uid"] = data["source_geo_id"].map(lambda x: geography_uid("gadm", version, level, x))
+    data["geo_uid"] = data["source_geo_id"].map(
+        lambda x: geography_uid("gadm", version, level, x)
+    )
     if parent_col and parent_col in data.columns:
-        parent_present = data[parent_col].notna() & data[parent_col].astype("string").str.strip().ne("")
+        parent_present = (
+            data[parent_col].notna() & data[parent_col].astype("string").str.strip().ne("")
+        )
         data["parent_geo_uid"] = [
             geography_uid("gadm", version, level - 1, str(value)) if present else None
             for value, present in zip(data[parent_col], parent_present)
@@ -78,7 +86,9 @@ def normalize_gadm_frame(
     ]
     out = data[keep].copy()
     if out["geo_uid"].duplicated().any():
-        dupes = out.loc[out["geo_uid"].duplicated(keep=False), "geo_uid"].unique().tolist()[:10]
+        dupes = out.loc[
+            out["geo_uid"].duplicated(keep=False), "geo_uid"
+        ].unique().tolist()[:10]
         raise ValueError(f"duplicate geography IDs after normalization: {dupes}")
 
     null_geometry = out.geometry.isna()
