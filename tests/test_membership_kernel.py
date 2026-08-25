@@ -1,5 +1,6 @@
 import geopandas as gpd
-from shapely.geometry import Point, Polygon
+import pytest
+from shapely.geometry import LineString, Point, Polygon
 
 from spatial_foundation.geography import MembershipAudit, assign_points
 
@@ -80,6 +81,78 @@ def test_membership_kernel_reprojects_points_to_polygon_crs():
     assert _candidate_pairs(result) == {("inside", "A")}
     assert result.loc[0, "assignment_status"] == "matched_unique"
     assert audit.matched_unique == 1
+
+
+def test_membership_kernel_retains_missing_and_empty_points_as_invalid():
+    polygons = gpd.GeoDataFrame(
+        {"geo_uid": ["A"], "geometry_role": ["analytical"]},
+        geometry=[_square(0, 0, 1, 1)],
+        crs="EPSG:4326",
+    )
+    points = gpd.GeoDataFrame(
+        {"point_id": ["valid", "empty", "missing"]},
+        geometry=[Point(0.5, 0.5), Point(), None],
+        crs="EPSG:4326",
+    )
+
+    result, audit = assign_points(points, polygons, point_id_col="point_id")
+    statuses = (
+        result[["point_id", "candidate_count", "assignment_status"]]
+        .drop_duplicates()
+        .set_index("point_id")
+    )
+
+    assert statuses.loc["valid"].to_dict() == {
+        "candidate_count": 1,
+        "assignment_status": "matched_unique",
+    }
+    assert statuses.loc["empty"].to_dict() == {
+        "candidate_count": 0,
+        "assignment_status": "invalid_point",
+    }
+    assert statuses.loc["missing"].to_dict() == {
+        "candidate_count": 0,
+        "assignment_status": "invalid_point",
+    }
+    assert audit == MembershipAudit(
+        input_points=3,
+        matched_unique=1,
+        unmatched_outside=0,
+        ambiguous_multiple=0,
+        invalid_point=2,
+    )
+
+
+def test_membership_kernel_rejects_unsupported_source_geometry_family():
+    polygons = gpd.GeoDataFrame(
+        {"geo_uid": ["A"], "geometry_role": ["analytical"]},
+        geometry=[_square(0, 0, 1, 1)],
+        crs="EPSG:4326",
+    )
+    points = gpd.GeoDataFrame(
+        {"point_id": ["not-a-point"]},
+        geometry=[LineString([(0.2, 0.2), (0.8, 0.8)])],
+        crs="EPSG:4326",
+    )
+
+    with pytest.raises(ValueError, match="Point source geometry only"):
+        assign_points(points, polygons, point_id_col="point_id")
+
+
+def test_membership_kernel_rejects_invalid_target_geography():
+    polygons = gpd.GeoDataFrame(
+        {"geo_uid": ["A"], "geometry_role": ["display"]},
+        geometry=[_square(0, 0, 1, 1)],
+        crs="EPSG:4326",
+    )
+    points = gpd.GeoDataFrame(
+        {"point_id": ["point"]},
+        geometry=[Point(0.5, 0.5)],
+        crs="EPSG:4326",
+    )
+
+    with pytest.raises(ValueError, match="requires analytical geometry"):
+        assign_points(points, polygons, point_id_col="point_id")
 
 
 def test_membership_kernel_matches_recovered_legacy_overlay_sample():
