@@ -60,3 +60,15 @@ Largest-overlap selection, minimum-winner thresholds, tie handling, duplicate-so
 Areal-relation row order is not a public semantic contract. Consumers that need deterministic serialized output must sort by their declared identifiers before serialization or comparison.
 
 The foundational layer should therefore answer questions such as "which analytical polygons does this source object positively overlap, by how much?" A domain producer should answer questions such as "given those candidates and this declared methodology, which administrative or electoral unit owns this record?"
+
+## Next-version engineering program
+
+The 0.2 design keeps these semantic boundaries and changes how the foundation delegates work to the modern geospatial stack. The implementation program is documented as a reviewable bundle:
+
+- [`NEXT_VERSION_ARCHITECTURE.md`](NEXT_VERSION_ARCHITECTURE.md) — target ownership and execution architecture;
+- [`PERFORMANCE_ENGINEERING.md`](PERFORMANCE_ENGINEERING.md) — spatial-index/vectorization benchmark and optimization rules;
+- [`STACK_INTEGRATION_AUDIT.md`](STACK_INTEGRATION_AUDIT.md) — GeoPandas/Shapely/PyProj/Pyogrio/PyArrow integration audit;
+- [`BUILD_PACK_B.md`](BUILD_PACK_B.md) — ordered 0.2 implementation waves and stop rules;
+- [`AGENT_EXECUTION_PACK_B.md`](AGENT_EXECUTION_PACK_B.md) — bounded jobs for autonomous implementation agents.
+
+ADRs 0005 and 0006 record the low-level relation-kernel and installed-provenance/metric-area decisions.
