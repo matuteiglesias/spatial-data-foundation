@@ -6,7 +6,12 @@ import pandas as pd
 import pytest
 
 from benchmarks.baselines import baseline_assign_points, baseline_relate_areal_objects
-from benchmarks.workloads import AREAL_CASES, POINT_CASES, make_areal_workload, make_point_workload
+from benchmarks.workloads import (
+    AREAL_CASES,
+    POINT_CASES,
+    make_areal_workload,
+    make_point_workload,
+)
 from spatial_foundation.geography import assign_points, relate_areal_objects
 
 

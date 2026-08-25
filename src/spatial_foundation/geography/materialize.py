@@ -26,6 +26,7 @@ from empirical_contracts import (
 
 from .._runtime import runtime_versions
 from ..catalog import DataRoot, sha256_file
+from ._gadm_io import read_gadm_level_parts
 from ._validation import require_projected_metre_crs
 from .gadm import normalize_gadm_frame
 
@@ -137,60 +138,26 @@ def _verify_snapshot(snapshot: SourceSnapshotRef) -> None:
             )
 
 
-def _native_level(frame: gpd.GeoDataFrame) -> int | None:
-    levels = []
-    for column in frame.columns:
-        if not column.startswith("GID_"):
-            continue
-        suffix = column[4:]
-        if suffix.isdigit():
-            levels.append(int(suffix))
-    return max(levels) if levels else None
-
-
-def _read_single_level(path: Path, level: int) -> gpd.GeoDataFrame | None:
-    suffix = path.suffix.lower()
-    if suffix in {".parquet", ".geoparquet"}:
-        frame = gpd.read_parquet(path)
-        return frame if _native_level(frame) == level else None
-
-    if suffix == ".gpkg":
-        layer = f"ADM_ADM_{level}"
-        try:
-            frame = gpd.read_file(path, layer=layer)
-        except (ValueError, RuntimeError, OSError):
-            try:
-                frame = gpd.read_file(path)
-            except (ValueError, RuntimeError, OSError):
-                return None
-        return frame if _native_level(frame) == level else None
-
-    try:
-        frame = gpd.read_file(path)
-    except (ValueError, RuntimeError, OSError) as exc:
-        raise ValueError(f"cannot read registered GADM source file {path}: {exc}") from exc
-    return frame if _native_level(frame) == level else None
-
-
 def _read_level(
     snapshot: SourceSnapshotRef,
     level: int,
     *,
     area_crs: str,
 ) -> gpd.GeoDataFrame:
-    normalized_parts = []
-    for ref in snapshot.files:
-        source = _read_single_level(Path(ref.path), level)
-        if source is None:
-            continue
-        normalized_parts.append(
-            normalize_gadm_frame(
-                source,
-                version=snapshot.release,
-                level=level,
-                area_crs=area_crs,
-            )
+    source_parts = read_gadm_level_parts(
+        (Path(ref.path) for ref in snapshot.files),
+        level,
+        use_arrow=True,
+    )
+    normalized_parts = [
+        normalize_gadm_frame(
+            source,
+            version=snapshot.release,
+            level=level,
+            area_crs=area_crs,
         )
+        for source in source_parts
+    ]
 
     if not normalized_parts:
         raise ValueError(
@@ -253,17 +220,20 @@ def materialize_gadm(
     """Materialize registered GADM sources as auditable silver GeoParquet assets.
 
     Source bytes are never downloaded or copied by this function. Registered hashes are
-    revalidated before reading. All requested levels are normalized and staged before
-    final silver paths are published. Run provenance and geography QA are persisted as
-    JSON companions under ``runs/spatial-data-foundation/<run_id>/``.
+    revalidated before reading. Vector sources are inspected with Pyogrio/GDAL before
+    geometry is loaded; only the requested GADM identity attributes plus authoritative
+    geometry are transferred, using GDAL's Arrow path in this PyArrow-backed workflow.
+    All requested levels are normalized and staged before final silver paths are
+    published. Run provenance and geography QA are persisted as JSON companions under
+    ``runs/spatial-data-foundation/<run_id>/``.
 
     ``code_commit`` is strongest when the caller supplies it or when execution occurs
     in a Git checkout. A normal installed wheel has no repository SHA, so its manifest
     records ``code_commit=null`` while retaining the installed package/runtime versions.
 
-    The registered snapshot may contain separate level files or standard GADM 4.x
-    GeoPackages with ``ADM_ADM_<level>`` layers. GeoParquet materialization requires
-    the package ``io`` extra (pyarrow).
+    The registered snapshot may contain separate level files, GeoParquet sources, or
+    multi-layer GADM GeoPackages. GeoParquet publication requires the package ``io``
+    extra (pyarrow).
     """
     try:
         import pyarrow  # noqa: F401
@@ -383,6 +353,11 @@ def materialize_gadm(
                 "version": snapshot.release,
                 "area_crs": area_crs,
                 "runtime_versions": runtime,
+                "source_io": {
+                    "vector_backend": "pyogrio",
+                    "vector_use_arrow": True,
+                    "column_projection": True,
+                },
                 "requested_levels": list(requested_levels),
                 "available_levels": list(requested_levels),
                 "output_files": {
@@ -444,6 +419,11 @@ def materialize_gadm(
                 "version": snapshot.release,
                 "area_crs": area_crs,
                 "runtime_versions": runtime,
+                "source_io": {
+                    "vector_backend": "pyogrio",
+                    "vector_use_arrow": True,
+                    "column_projection": True,
+                },
                 "requested_levels": list(requested_levels),
                 "available_levels": [],
             },
