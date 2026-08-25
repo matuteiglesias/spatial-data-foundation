@@ -50,7 +50,7 @@ def test_built_wheel_supports_clean_core_and_presentation_consumers(tmp_path):
         cwd=tmp_path,
         check=True,
     )
-    core_verification = f"""
+    core_verification = """
 from pathlib import Path
 import sys
 import sysconfig
@@ -65,12 +65,12 @@ purelib = Path(sysconfig.get_paths()["purelib"]).resolve()
 assert package_path.is_relative_to(purelib), (package_path, purelib)
 
 polygons = gpd.GeoDataFrame(
-    {{"geo_uid": ["A"], "geometry_role": ["analytical"]}},
+    {"geo_uid": ["A"], "geometry_role": ["analytical"]},
     geometry=[Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])],
     crs="EPSG:3857",
 )
 objects = gpd.GeoDataFrame(
-    {{"object_id": ["o1"]}},
+    {"object_id": ["o1"]},
     geometry=[Polygon([(1, 1), (2, 1), (2, 2), (1, 2)])],
     crs="EPSG:3857",
 )
