@@ -151,7 +151,7 @@ def test_membership_kernel_rejects_invalid_target_geography():
         crs="EPSG:4326",
     )
 
-    with pytest.raises(ValueError, match="requires analytical geography geometry"):
+    with pytest.raises(ValueError, match="requires analytical geometry"):
         assign_points(points, polygons, point_id_col="point_id")
 
 
