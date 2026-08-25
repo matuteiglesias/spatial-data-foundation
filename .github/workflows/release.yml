@@ -117,6 +117,7 @@ jobs:
           cd /tmp
           /tmp/spatial-foundation-io/bin/python - <<'PY'
           import json
+          from importlib.metadata import version
           from pathlib import Path
 
           import spatial_foundation as sf
@@ -149,9 +150,13 @@ jobs:
               output_root=Path("release-assets").resolve(),
           )
           manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+          package_version = version("spatial-data-foundation")
           assert manifest["code_commit"] is None
-          assert manifest["package_version"] == sf.__version__ if hasattr(sf, "__version__") else manifest["package_version"]
-          assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == manifest["package_version"]
+          assert manifest["package_version"] == package_version
+          assert (
+              manifest["parameters"]["runtime_versions"]["spatial-data-foundation"]
+              == package_version
+          )
           assert manifest["parameters"]["source_io"] == {
               "vector_backend": "pyogrio",
               "vector_use_arrow": True,
