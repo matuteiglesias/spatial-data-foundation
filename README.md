@@ -4,7 +4,7 @@ Reusable spatial/time infrastructure for research systems.
 
 This repository owns geography authority, period indexing, source registration, auditable spatial membership, and materialization provenance. It does not own FCV treatments, outcomes, matching, survey harmonization, or regressions.
 
-Initial provider: GADM. Initial clients in the next build pack: GHSL and ACLED.
+Initial provider: GADM. Before adding new provider families such as GHSL, the current development program hardens the vector foundation against the modern GeoPandas/Shapely/PyProj/Pyogrio stack. See [`docs/BUILD_PACK_B.md`](docs/BUILD_PACK_B.md) and the linked architecture/performance/agent design bundle.
 
 ## Operational GADM materialization
 
