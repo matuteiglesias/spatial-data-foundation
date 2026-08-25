@@ -17,8 +17,10 @@ def require_unique_nonmissing_ids(
     if column not in frame.columns:
         raise ValueError(f"missing {label} id column: {column}")
     values = frame[column]
-    if values.isna().any() or values.duplicated().any():
-        raise ValueError(f"{label} IDs must be non-missing and unique")
+    if values.isna().any():
+        raise ValueError(f"{label} IDs must be non-missing")
+    if values.duplicated().any():
+        raise ValueError(f"{label} IDs must be unique")
 
 
 def require_analytical_polygons(
@@ -28,13 +30,13 @@ def require_analytical_polygons(
     operation: str,
 ) -> None:
     if polygons.crs is None:
-        raise ValueError(f"{operation} analytical geography requires a CRS")
+        raise ValueError(f"{operation} analytical geography inputs require a CRS")
     require_unique_nonmissing_ids(polygons, polygon_id_col, label="polygon")
 
     if "geometry_role" in polygons.columns:
         roles = polygons["geometry_role"].astype("string")
         if roles.isna().any() or roles.ne("analytical").any():
-            raise ValueError(f"{operation} requires analytical geography geometry")
+            raise ValueError(f"{operation} requires analytical geometry")
 
     geometry = polygons.geometry
     if geometry.isna().any() or geometry.is_empty.any() or (~geometry.is_valid).any():
