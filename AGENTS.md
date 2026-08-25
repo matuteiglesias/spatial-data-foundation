@@ -14,6 +14,9 @@ Build a reusable spatial substrate that can serve FCV and unrelated research. Pr
 - point assignment reports ambiguity rather than silently resolving it;
 - every real materialization must be attributable to a source snapshot and run manifest;
 - specific FCV l1/l2/l3 mappings belong in FCV configuration, not this package;
+- presentation helpers never mutate analytical geometry, membership, identifiers, or domain interpretation;
+- core imports must not require optional presentation dependencies;
+- live basemap access is explicit caller behavior; tests and core spatial execution remain network-free;
 - no notebooks in production code.
 
 ## Do not add
@@ -21,7 +24,9 @@ Build a reusable spatial substrate that can serve FCV and unrelated research. Pr
 - treatment/control concepts;
 - regression/matching dependencies;
 - ACLED/DHS/AFB-specific fields to core geography schemas;
-- automatic network downloads in Build Pack A;
+- automatic network downloads in core spatial workflows;
+- provider credentials or secrets;
+- domain assignment/tie-break policy inside generic spatial relations;
 - orchestration frameworks;
 - global mutable configuration.
 
