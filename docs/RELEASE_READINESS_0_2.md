@@ -169,6 +169,8 @@ The candidate is ready for human release review when the branch containing the f
 
 These checks are intentionally evidence gates, not absolute performance thresholds.
 
+The governed release workflow also rebuilds the exact tagged distributions and independently verifies clean core, presentation, and `[io]` materialization environments before allowing the publish job to consume those exact artifacts.
+
 ## Explicitly deferred beyond 0.2
 
 The following remain outside the current foundation unless a real consumer creates a bounded requirement:
@@ -188,9 +190,10 @@ The following remain outside the current foundation unless a real consumer creat
 
 After this readiness PR is reviewed and merged, a separate explicit release action may:
 
-1. bump the package version to `0.2.0`;
-2. run the same gates against that exact versioned commit;
-3. create the release/tag;
-4. publish through the repository's governed package-release path, if configured and intentionally approved.
+1. bump the package version to `0.2.0` in a bounded release-only change;
+2. run the same CI gates against that exact versioned commit;
+3. create the `v0.2.0` tag / GitHub Release only after those gates are green.
 
-Do not combine those publication actions with unrelated implementation work.
+**Publishing the GitHub Release is the PyPI trigger.** The repository's `Release` workflow checks that the release tag matches the package version, rebuilds wheel/sdist, verifies clean core, presentation, and installed-wheel `[io]` materialization, and then publishes those exact artifacts to PyPI through OIDC. Creating/publishing that release is therefore an explicit external publication action, not a harmless bookkeeping step.
+
+Do not combine the version bump, release publication, or any later consumer migration with unrelated implementation work.
