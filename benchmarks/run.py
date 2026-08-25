@@ -7,8 +7,13 @@ from pathlib import Path
 
 import geopandas as gpd
 
-from .runner import profile_areal_workload, profile_point_workload, run_suite, runtime_versions
-from .workloads import ArealWorkload, PRESET_WIDTHS, PointWorkload
+from .runner import (
+    profile_areal_workload,
+    profile_point_workload,
+    run_suite,
+    runtime_versions,
+)
+from .workloads import PRESET_WIDTHS, ArealWorkload, PointWorkload
 
 
 def _read_frame(path: Path) -> gpd.GeoDataFrame:
