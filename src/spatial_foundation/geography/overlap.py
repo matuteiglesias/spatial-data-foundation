@@ -5,11 +5,7 @@ from dataclasses import dataclass
 import geopandas as gpd
 import pandas as pd
 
-from ._validation import (
-    require_analytical_polygons,
-    require_projected_metre_crs,
-    require_unique_nonmissing_ids,
-)
+from ._validation import require_analytical_polygons, require_projected_metre_crs
 
 
 @dataclass(frozen=True)
@@ -91,7 +87,10 @@ def relate_areal_objects(
         raise ValueError("min_overlap_area_m2 must be non-negative")
     if objects.crs is None:
         raise ValueError("areal relation source objects require a CRS")
-    require_unique_nonmissing_ids(objects, object_id_col, label="object")
+    if object_id_col not in objects.columns:
+        raise ValueError(f"missing object id column: {object_id_col}")
+    if objects[object_id_col].isna().any() or objects[object_id_col].duplicated().any():
+        raise ValueError("object IDs must be non-missing and unique")
     require_analytical_polygons(
         polygons,
         polygon_id_col=polygon_id_col,
