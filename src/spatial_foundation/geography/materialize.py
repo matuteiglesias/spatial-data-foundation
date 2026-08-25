@@ -24,7 +24,9 @@ from empirical_contracts import (
     SourceSnapshotRef,
 )
 
+from .._runtime import runtime_versions
 from ..catalog import DataRoot, sha256_file
+from ._validation import require_projected_metre_crs
 from .gadm import normalize_gadm_frame
 
 PACKAGE_NAME = "spatial-data-foundation"
@@ -51,7 +53,7 @@ def _package_version() -> str:
         return "0.1.0"
 
 
-def _resolve_code_commit(explicit: str | None) -> str:
+def _resolve_code_commit(explicit: str | None) -> str | None:
     if explicit and explicit.strip():
         return explicit.strip()
     env_value = os.environ.get("SPATIAL_DATA_FOUNDATION_CODE_COMMIT")
@@ -72,17 +74,17 @@ def _resolve_code_commit(explicit: str | None) -> str:
         result = None
     if result and result.stdout.strip():
         return result.stdout.strip()
-    raise ValueError(
-        "code_commit is required when Git metadata is unavailable; pass it explicitly "
-        "or set SPATIAL_DATA_FOUNDATION_CODE_COMMIT"
-    )
+    return None
 
 
 def _validate_levels(levels: Iterable[int]) -> tuple[int, ...]:
     normalized = tuple(sorted(set(levels)))
     if not normalized:
         raise ValueError("at least one GADM level is required")
-    if any(not isinstance(level, int) or isinstance(level, bool) or level < 0 for level in normalized):
+    if any(
+        not isinstance(level, int) or isinstance(level, bool) or level < 0
+        for level in normalized
+    ):
         raise ValueError("GADM levels must be non-negative integers")
     return normalized
 
@@ -98,11 +100,12 @@ def _default_run_id(
     snapshot: SourceSnapshotRef,
     levels: tuple[int, ...],
     area_crs: str,
-    code_commit: str,
+    code_commit: str | None,
     started_at: datetime,
 ) -> str:
+    code_identity = code_commit or f"package:{_package_version()}"
     payload = "|".join(
-        [snapshot.snapshot_id, ",".join(map(str, levels)), area_crs, code_commit]
+        [snapshot.snapshot_id, ",".join(map(str, levels)), area_crs, code_identity]
     ).encode()
     short = sha256(payload).hexdigest()[:8]
     stamp = started_at.strftime("%Y%m%dT%H%M%S%fZ")
@@ -201,7 +204,9 @@ def _read_level(
     )
     if combined["geo_uid"].duplicated().any():
         duplicates = int(combined["geo_uid"].duplicated(keep=False).sum())
-        raise ValueError(f"duplicate geography IDs across registered GADM files: {duplicates} row(s)")
+        raise ValueError(
+            f"duplicate geography IDs across registered GADM files: {duplicates} row(s)"
+        )
     return combined
 
 
@@ -252,6 +257,10 @@ def materialize_gadm(
     final silver paths are published. Run provenance and geography QA are persisted as
     JSON companions under ``runs/spatial-data-foundation/<run_id>/``.
 
+    ``code_commit`` is strongest when the caller supplies it or when execution occurs
+    in a Git checkout. A normal installed wheel has no repository SHA, so its manifest
+    records ``code_commit=null`` while retaining the installed package/runtime versions.
+
     The registered snapshot may contain separate level files or standard GADM 4.x
     GeoPackages with ``ADM_ADM_<level>`` layers. GeoParquet materialization requires
     the package ``io`` extra (pyarrow).
@@ -266,7 +275,9 @@ def materialize_gadm(
     requested_levels = _validate_levels(levels)
     if not area_crs or not area_crs.strip():
         raise ValueError("area_crs must be non-empty")
+    require_projected_metre_crs(area_crs)
     commit = _resolve_code_commit(code_commit)
+    runtime = runtime_versions()
     started_at = _utc_now()
     resolved_run_id = _validate_run_id(
         run_id
@@ -286,8 +297,12 @@ def materialize_gadm(
     qa_path = run_root / "geography_qa.json"
     run_root.mkdir(parents=True, exist_ok=True)
 
-    outputs = {level: dataset_root / f"adm{level}.geoparquet" for level in requested_levels}
-    temp_paths = {level: dataset_root / f".adm{level}.geoparquet.tmp" for level in requested_levels}
+    outputs = {
+        level: dataset_root / f"adm{level}.geoparquet" for level in requested_levels
+    }
+    temp_paths = {
+        level: dataset_root / f".adm{level}.geoparquet.tmp" for level in requested_levels
+    }
 
     try:
         _verify_snapshot(snapshot)
@@ -367,6 +382,7 @@ def materialize_gadm(
                 "provider": "gadm",
                 "version": snapshot.release,
                 "area_crs": area_crs,
+                "runtime_versions": runtime,
                 "requested_levels": list(requested_levels),
                 "available_levels": list(requested_levels),
                 "output_files": {
@@ -427,6 +443,7 @@ def materialize_gadm(
                 "provider": "gadm",
                 "version": snapshot.release,
                 "area_crs": area_crs,
+                "runtime_versions": runtime,
                 "requested_levels": list(requested_levels),
                 "available_levels": [],
             },
