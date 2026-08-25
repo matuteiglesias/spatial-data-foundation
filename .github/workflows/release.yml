@@ -108,6 +108,58 @@ jobs:
           assert presentation.resolve_basemap("terrain").name == "OpenTopoMap"
           PY
 
+      - name: Verify IO materialization extra in a fresh environment
+        run: |
+          WHEEL=$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -name '*.whl' -print -quit)
+          test -n "$WHEEL"
+          python -m venv /tmp/spatial-foundation-io
+          /tmp/spatial-foundation-io/bin/python -m pip install "${WHEEL}[io]"
+          cd /tmp
+          /tmp/spatial-foundation-io/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import spatial_foundation as sf
+
+          source = Path("release-gadm.geojson").resolve()
+          source.write_text(
+              json.dumps(
+                  {
+                      "type": "FeatureCollection",
+                      "features": [
+                          {
+                              "type": "Feature",
+                              "properties": {"GID_0": "AAA"},
+                              "geometry": {
+                                  "type": "Polygon",
+                                  "coordinates": [
+                                      [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]
+                                  ],
+                              },
+                          }
+                      ],
+                  }
+              ),
+              encoding="utf-8",
+          )
+          snapshot = sf.register_external_snapshot("gadm", "4.1", [source])
+          result = sf.materialize_gadm(
+              snapshot=snapshot,
+              levels=[0],
+              output_root=Path("release-assets").resolve(),
+          )
+          manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+          assert manifest["code_commit"] is None
+          assert manifest["package_version"] == sf.__version__ if hasattr(sf, "__version__") else manifest["package_version"]
+          assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == manifest["package_version"]
+          assert manifest["parameters"]["source_io"] == {
+              "vector_backend": "pyogrio",
+              "vector_use_arrow": True,
+              "column_projection": True,
+          }
+          assert result.outputs[0].exists()
+          PY
+
       - name: Upload exact release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
