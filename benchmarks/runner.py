@@ -11,7 +11,12 @@ import pandas as pd
 
 from spatial_foundation.geography import assign_points, relate_areal_objects
 
-from .workloads import AREAL_CASES, POINT_CASES, make_areal_workload, make_point_workload
+from .workloads import (
+    AREAL_CASES,
+    POINT_CASES,
+    make_areal_workload,
+    make_point_workload,
+)
 
 
 @dataclass(frozen=True)
@@ -116,9 +121,9 @@ def profile_point_workload(workload, *, adapter: KernelAdapter = CURRENT_ADAPTER
         )
     )
 
-    bbox_candidates = int(bbox_pairs.shape[1]) if bbox_pairs.ndim == 2 else int(len(bbox_pairs))
+    bbox_candidates = int(bbox_pairs.shape[1]) if bbox_pairs.ndim == 2 else len(bbox_pairs)
     predicate_candidates = (
-        int(predicate_pairs.shape[1]) if predicate_pairs.ndim == 2 else int(len(predicate_pairs))
+        int(predicate_pairs.shape[1]) if predicate_pairs.ndim == 2 else len(predicate_pairs)
     )
     return {
         "kind": "point",
@@ -206,9 +211,9 @@ def profile_areal_workload(
         )
     )
 
-    bbox_candidates = int(bbox_pairs.shape[1]) if bbox_pairs.ndim == 2 else int(len(bbox_pairs))
+    bbox_candidates = int(bbox_pairs.shape[1]) if bbox_pairs.ndim == 2 else len(bbox_pairs)
     predicate_candidates = (
-        int(predicate_pairs.shape[1]) if predicate_pairs.ndim == 2 else int(len(predicate_pairs))
+        int(predicate_pairs.shape[1]) if predicate_pairs.ndim == 2 else len(predicate_pairs)
     )
     return {
         "kind": "areal",
