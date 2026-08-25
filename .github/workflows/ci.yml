@@ -80,4 +80,4 @@ jobs:
       - name: Verify clean core and presentation wheel consumers
         env:
           SPATIAL_FOUNDATION_FULL_DISTRIBUTION: "1"
-        run: pytest -q tests/test_distribution.py
+        run: pytest -q --noconftest tests/test_distribution.py
