@@ -77,16 +77,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
 
-      - name: Run deterministic small benchmark
+      - name: Compare B1 baseline and current kernels
         run: |
-          python -m benchmarks.run --preset small --output benchmark-smoke.json
-          cat benchmark-smoke.json
+          python -m benchmarks.run --preset small --compare --output benchmark-small.json
+          python -m benchmarks.run --preset medium --compare --output benchmark-medium.json
 
       - name: Upload benchmark evidence
         uses: actions/upload-artifact@v4
         with:
-          name: spatial-benchmark-small
-          path: benchmark-smoke.json
+          name: spatial-benchmark-comparison
+          path: |
+            benchmark-small.json
+            benchmark-medium.json
 
   distribution-boundary:
     runs-on: ubuntu-latest

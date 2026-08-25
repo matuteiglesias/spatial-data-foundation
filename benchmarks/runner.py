@@ -11,6 +11,7 @@ import pandas as pd
 
 from spatial_foundation.geography import assign_points, relate_areal_objects
 
+from .baselines import baseline_assign_points, baseline_relate_areal_objects
 from .workloads import (
     AREAL_CASES,
     POINT_CASES,
@@ -28,6 +29,11 @@ class KernelAdapter:
     relate_areal_objects: Callable[..., tuple[pd.DataFrame, Any]]
 
 
+BASELINE_ADAPTER = KernelAdapter(
+    name="b1_baseline",
+    assign_points=baseline_assign_points,
+    relate_areal_objects=baseline_relate_areal_objects,
+)
 CURRENT_ADAPTER = KernelAdapter(
     name="current",
     assign_points=assign_points,
@@ -129,10 +135,7 @@ def profile_point_workload(workload, *, adapter: KernelAdapter = CURRENT_ADAPTER
         "kind": "point",
         "workload": workload.name,
         "adapter": adapter.name,
-        "inputs": {
-            "points": len(workload.points),
-            "polygons": len(workload.polygons),
-        },
+        "inputs": {"points": len(workload.points), "polygons": len(workload.polygons)},
         "cardinality": {
             "bbox_candidates": bbox_candidates,
             "predicate_candidates": predicate_candidates,
@@ -168,10 +171,7 @@ def profile_areal_workload(
     )
 
     metric_inputs, metric_reprojection_seconds = _seconds(
-        lambda: (
-            workload.objects.to_crs(area_crs),
-            workload.polygons.to_crs(area_crs),
-        )
+        lambda: (workload.objects.to_crs(area_crs), workload.polygons.to_crs(area_crs))
     )
     metric_objects, metric_polygons = metric_inputs
     left_indices = predicate_pairs[0]
@@ -219,10 +219,7 @@ def profile_areal_workload(
         "kind": "areal",
         "workload": workload.name,
         "adapter": adapter.name,
-        "inputs": {
-            "objects": len(workload.objects),
-            "polygons": len(workload.polygons),
-        },
+        "inputs": {"objects": len(workload.objects), "polygons": len(workload.polygons)},
         "cardinality": {
             "bbox_candidates": bbox_candidates,
             "predicate_candidates": predicate_candidates,
@@ -252,15 +249,7 @@ def run_suite(
     results = []
     for adapter in selected.values():
         for case in POINT_CASES:
-            results.append(
-                profile_point_workload(make_point_workload(case, preset), adapter=adapter)
-            )
+            results.append(profile_point_workload(make_point_workload(case, preset), adapter=adapter))
         for case in AREAL_CASES:
-            results.append(
-                profile_areal_workload(make_areal_workload(case, preset), adapter=adapter)
-            )
-    return {
-        "preset": preset,
-        "runtime_versions": runtime_versions(),
-        "results": results,
-    }
+            results.append(profile_areal_workload(make_areal_workload(case, preset), adapter=adapter))
+    return {"preset": preset, "runtime_versions": runtime_versions(), "results": results}
