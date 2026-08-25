@@ -19,7 +19,20 @@ dependencies = [
 io = ["pyarrow>=15", "duckdb>=1.0"]
 raster = ["rasterio>=1.3"]
 cli = ["typer>=0.12"]
-dev = ["pytest>=8", "ruff>=0.6", "pyarrow>=15", "build>=1.2"]
+presentation = [
+  "matplotlib>=3.8",
+  "contextily>=1.7.1,<2",
+  "xyzservices>=2026.3,<2027",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "pyarrow>=15",
+  "build>=1.2",
+  "matplotlib>=3.8",
+  "contextily>=1.7.1,<2",
+  "xyzservices>=2026.3,<2027",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
