@@ -110,3 +110,53 @@ assert presentation.resolve_basemap("terrain").name == "OpenTopoMap"
         cwd=tmp_path,
         check=True,
     )
+
+    materialization_python = _create_clean_venv(tmp_path / "materialization-venv")
+    materialization_requirement = f"{wheel}[io]"
+    subprocess.run(
+        [str(materialization_python), "-m", "pip", "install", materialization_requirement],
+        cwd=tmp_path,
+        check=True,
+    )
+    materialization_verification = """
+import json
+from pathlib import Path
+
+import spatial_foundation as sf
+
+source = Path("wheel-gadm.geojson").resolve()
+source.write_text(
+    json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"GID_0": "AAA"},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+                    },
+                }
+            ],
+        }
+    ),
+    encoding="utf-8",
+)
+snapshot = sf.register_external_snapshot("gadm", "4.1", [source])
+result = sf.materialize_gadm(
+    snapshot=snapshot,
+    levels=[0],
+    output_root=Path("wheel-assets").resolve(),
+)
+manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+assert manifest["code_commit"] is None
+assert manifest["package_version"] == "0.1.0"
+assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == "0.1.0"
+assert result.outputs[0].exists()
+"""
+    subprocess.run(
+        [str(materialization_python), "-c", materialization_verification],
+        cwd=tmp_path,
+        check=True,
+    )
