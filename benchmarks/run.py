@@ -8,6 +8,8 @@ from pathlib import Path
 import geopandas as gpd
 
 from .runner import (
+    BASELINE_ADAPTER,
+    CURRENT_ADAPTER,
     profile_areal_workload,
     profile_point_workload,
     run_suite,
@@ -23,6 +25,8 @@ def _read_frame(path: Path) -> gpd.GeoDataFrame:
 
 
 def _local_payload(args: argparse.Namespace) -> dict:
+    if args.compare:
+        raise SystemExit("--compare is currently defined for generated workloads only")
     if args.objects is None or args.polygons is None or args.kind is None:
         raise SystemExit("local benchmarking requires --objects, --polygons, and --kind")
 
@@ -48,11 +52,7 @@ def _local_payload(args: argparse.Namespace) -> dict:
             area_crs=args.area_crs,
         )
 
-    return {
-        "preset": "local",
-        "runtime_versions": runtime_versions(),
-        "results": [result],
-    }
+    return {"preset": "local", "runtime_versions": runtime_versions(), "results": [result]}
 
 
 def _summary(payload: dict) -> str:
@@ -65,7 +65,8 @@ def _summary(payload: dict) -> str:
         exact = timings.get("diagnostic_scalar_exact_geometry")
         exact_text = "" if exact is None else f" exact={exact:.6f}s"
         lines.append(
-            f"{result['workload']}: bbox={cardinality['bbox_candidates']} "
+            f"{result['adapter']} {result['workload']}: "
+            f"bbox={cardinality['bbox_candidates']} "
             f"predicate={cardinality['predicate_candidates']} amp={amplification_text} "
             f"query={timings['predicate_tree_query']:.6f}s{exact_text} "
             f"total={timings['public_kernel_total']:.6f}s"
@@ -76,6 +77,7 @@ def _summary(payload: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run deterministic spatial relation benchmarks")
     parser.add_argument("--preset", choices=tuple(PRESET_WIDTHS), default="small")
+    parser.add_argument("--compare", action="store_true", help="run B1 baseline and current kernels")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--objects", type=Path, help="optional local point/polygon source")
     parser.add_argument("--polygons", type=Path, help="optional local target geography")
@@ -85,11 +87,16 @@ def main() -> None:
     parser.add_argument("--area-crs", default="EPSG:3857")
     args = parser.parse_args()
 
-    payload = (
-        _local_payload(args)
-        if args.objects is not None or args.polygons is not None or args.kind is not None
-        else run_suite(args.preset)
-    )
+    if args.objects is not None or args.polygons is not None or args.kind is not None:
+        payload = _local_payload(args)
+    else:
+        adapters = (
+            {BASELINE_ADAPTER.name: BASELINE_ADAPTER, CURRENT_ADAPTER.name: CURRENT_ADAPTER}
+            if args.compare
+            else None
+        )
+        payload = run_suite(args.preset, adapters=adapters)
+
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     if args.output is None:
         print(rendered, end="")
