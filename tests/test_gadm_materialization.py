@@ -1,5 +1,6 @@
 import json
 import subprocess
+from importlib import metadata
 from pathlib import Path
 
 import geopandas as gpd
@@ -90,7 +91,9 @@ def test_materialize_gadm_publishes_geoparquet_manifest_and_qa(tmp_path):
     assert manifest["parameters"]["available_levels"] == [0, 1]
     runtime = manifest["parameters"]["runtime_versions"]
     assert runtime["python"]
-    assert runtime["spatial-data-foundation"] == "0.1.0"
+    assert runtime["spatial-data-foundation"] == metadata.version(
+        "spatial-data-foundation"
+    )
     assert runtime["geopandas"] != "not-installed"
     assert runtime["shapely"] != "not-installed"
     assert runtime["GEOS"]
@@ -142,8 +145,12 @@ def test_materialize_gadm_allows_missing_git_metadata(monkeypatch, tmp_path):
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert manifest["code_commit"] is None
-    assert manifest["package_version"] == "0.1.0"
-    assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == "0.1.0"
+    expected_version = metadata.version("spatial-data-foundation")
+    assert manifest["package_version"] == expected_version
+    assert (
+        manifest["parameters"]["runtime_versions"]["spatial-data-foundation"]
+        == expected_version
+    )
     assert result.outputs[0].exists()
 
 
