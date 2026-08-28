@@ -120,6 +120,7 @@ assert presentation.resolve_basemap("terrain").name == "OpenTopoMap"
     )
     materialization_verification = """
 import json
+from importlib import metadata
 from pathlib import Path
 
 import spatial_foundation as sf
@@ -150,9 +151,10 @@ result = sf.materialize_gadm(
     output_root=Path("wheel-assets").resolve(),
 )
 manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+expected_version = metadata.version("spatial-data-foundation")
 assert manifest["code_commit"] is None
-assert manifest["package_version"] == "0.1.0"
-assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == "0.1.0"
+assert manifest["package_version"] == expected_version
+assert manifest["parameters"]["runtime_versions"]["spatial-data-foundation"] == expected_version
 assert result.outputs[0].exists()
 """
     subprocess.run(
